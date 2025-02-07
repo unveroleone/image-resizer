@@ -13,7 +13,7 @@ Boot-Img-Bot is a Discord bot that allows users to resize images directly in a D
 ---
 
 👉 **Join my Discord server HackLab to stay updated and get support:**  
-🔗 [HackLab Discord Server]https://discord.gg/R8QJKCFYr9)
+🔗 [HackLab Discord Server](https://discord.gg/R8QJKCFYr9)
 
 ---
 
