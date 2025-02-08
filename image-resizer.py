@@ -24,7 +24,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Size options for different devices
 size_options = {
     "📟": (240, 135),  # M5Stick & Cardputer
-    "📡": (320, 240),  # T-Embed CC1101
+    "📡": (320, 170),  # T-Embed CC1101
     "🖥️": (320, 240)   # CYD
 }
 
@@ -41,7 +41,7 @@ async def resizer(ctx):
         color=discord.Color.blue()
     )
     embed.add_field(name="📟 M5Stick / Cardputer", value="240x135", inline=False)
-    embed.add_field(name="📡 T-Embed CC1101", value="320x240", inline=False)
+    embed.add_field(name="📡 T-Embed CC1101", value="320x170", inline=False)
     embed.add_field(name="🖥️ CYD", value="320x240", inline=False)
     
     message = await ctx.send(embed=embed)
@@ -81,42 +81,51 @@ async def on_reaction_add(reaction, user):
             await process_and_send_image(image_url, size, user)
 
 async def process_and_send_image(image_url, size, user):
-    """Downloads, resizes, and sends back the processed image as 'boot.[format]'."""
+    """Downloads, resizes, and sends back the processed image while preserving GIF animations."""
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url) as resp:
             if resp.status != 200:
-                return await user.send(f"⚠️ There was an error downloading the image.")
+                return await user.send("⚠️ There was an error downloading the image.")
             
             image_bytes = await resp.read()
     
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
             image_format = img.format if img.format else "JPEG"
-            file_extension = "jpg" if image_format.lower() == "jpeg" else image_format.lower()
-            
-            # Convert PNG to JPG
-            if file_extension == "png":
-                img = img.convert("RGBA")
-                white_bg = Image.new("RGB", img.size, (255, 255, 255))
-                white_bg.paste(img, mask=img.split()[3])  # Use alpha channel as mask
-                img = white_bg  # Replace with new image
-                file_extension = "jpg"
-                image_format = "JPEG"
+            file_extension = image_format.lower() if image_format else "jpg"
 
-            # Set the filename to "boot.[format]"
-            new_filename = f"boot.{file_extension}"
+            # Wenn das Bild ein animiertes GIF ist
+            if img.format == "GIF" and getattr(img, "is_animated", False):
+                frames = []
+                for frame in range(img.n_frames):
+                    img.seek(frame)
+                    frame_resized = img.copy().resize(size, Image.NEAREST)
+                    frames.append(frame_resized)
 
-            img = img.resize(size, Image.LANCZOS)  # LANCZOS is better than ANTIALIAS
-
-            output_buffer = io.BytesIO()
-            img.save(output_buffer, format=image_format)
-            output_buffer.seek(0)
+                output_buffer = io.BytesIO()
+                frames[0].save(
+                    output_buffer,
+                    format="GIF",
+                    save_all=True,
+                    append_images=frames[1:],
+                    duration=img.info.get("duration", 100),
+                    loop=img.info.get("loop", 0)
+                )
+                output_buffer.seek(0)
+                new_filename = "boot.gif"
+            else:
+                # Für nicht-animierte Bilder
+                img = img.resize(size, Image.LANCZOS)
+                output_buffer = io.BytesIO()
+                img.save(output_buffer, format=image_format)
+                output_buffer.seek(0)
+                new_filename = f"boot.{file_extension}"
 
             file = discord.File(output_buffer, filename=new_filename)
             await user.send(f"✅ Here is your resized image ({size[0]}x{size[1]}).", file=file)
 
     except Exception as e:
-        await user.send(f"⚠️ There was an error processing the image.")
+        await user.send("⚠️ There was an error processing the image.")
         print(f"Error: {e}")
 
 # Start the bot
