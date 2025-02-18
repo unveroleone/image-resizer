@@ -5,7 +5,11 @@ Boot-Img-Bot is a Discord bot that allows users to resize images directly in a D
 ---
 
 ## 📌 Features
-- Resizes images uploaded to Discord for boot image on M5 Bruce (.jpg and .gif images)
+- Resizes images and GIFs uploaded to Discord for boot image use on M5 Bruce devices.
+- Supports multiple resolutions:
+  - **M5Stick & Cardputer**: 240x135
+  - **T-Embed CC1101**: 320x170
+  - **CYD**: 320x240
 - Runs on a Raspberry Pi
 - Automatically restarts with `supervisor`
 - Uses `discord.py` and `Pillow` for image processing
