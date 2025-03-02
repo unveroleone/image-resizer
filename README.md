@@ -13,6 +13,9 @@ Boot-Img-Bot is a Discord bot that allows users to resize images directly in a D
 - Runs on a Raspberry Pi
 - Automatically restarts with `supervisor`
 - Uses `discord.py` and `Pillow` for image processing
+- 🛠️ **Automatically sends a new embed message on restart**
+- 🛠️ **Deletes the old embed message before sending a new one**
+- 🛠️ **Supports custom Discord channel selection for embed messages**
 
 ---
 
@@ -133,11 +136,10 @@ pkill -f bot.py
 ---
 
 ## 🎯 Notes
-- Make sure `supervisor` is enabled on boot:
+- Ensure `supervisor` is enabled on boot:
   ```sh
   sudo systemctl enable supervisor
   ```
-- If running manually with `tmux`, ensure you **detach** properly so the bot keeps running.
+- If running manually with `tmux`, make sure you **detach** properly so the bot keeps running.
 
 🚀 **Now your Discord bot is fully set up and running on your Raspberry Pi!**
-
