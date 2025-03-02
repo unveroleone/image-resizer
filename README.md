@@ -42,8 +42,10 @@ cd boot-img-bot
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
-pip install python-dotenv  # Ensure dotenv is installed
+pip install asyncio
+pip install pillow
+pip install aiohttp
+pip install python-dotenv
 ```
 
 ### ✅ **4️⃣ Configure Environment Variables**

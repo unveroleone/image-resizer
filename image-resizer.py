@@ -4,17 +4,22 @@ from PIL import Image
 import aiohttp
 import io
 import os
+import asyncio
+import json
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-# Bot intents for messages and file processing
+# Set the channel ID where the bot should send the embed message
+CHANNEL_ID = 123456789012345678  # REPLACE THIS WITH YOUR DISCORD CHANNEL ID!
+
+# Bot intents
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-intents.reactions = True  # Needed for reaction tracking!
+intents.reactions = True
 intents.guilds = True
 intents.typing = False
 intents.presences = False
@@ -28,13 +33,52 @@ size_options = {
     "🖥️": (320, 240)   # CYD
 }
 
-@bot.event
-async def on_ready():
-    print(f'Bot is online as {bot.user.name}')
+# File for storing embed message ID
+EMBED_MESSAGE_FILE = "embed_message.json"
 
-@bot.command()
-async def resizer(ctx):
-    """Sends an embed message with the size options."""
+def save_embed_message_id(message_id):
+    """Saves the embed message ID to a JSON file"""
+    with open(EMBED_MESSAGE_FILE, "w") as f:
+        json.dump({"embed_message_id": message_id}, f)
+
+def load_embed_message_id():
+    """Loads the embed message ID from the JSON file"""
+    try:
+        with open(EMBED_MESSAGE_FILE, "r") as f:
+            data = json.load(f)
+            return data.get("embed_message_id")
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+async def delete_old_embed():
+    """Deletes the old embed message if it still exists."""
+    embed_message_id = load_embed_message_id()
+    if not embed_message_id:
+        return
+
+    channel = bot.get_channel(CHANNEL_ID)
+    if not channel:
+        print("⚠️ The bot cannot access the channel.")
+        return
+
+    try:
+        old_message = await channel.fetch_message(embed_message_id)
+        await old_message.delete()
+        print(f"🗑️ Old embed message deleted (ID: {embed_message_id})")
+    except discord.NotFound:
+        print("⚠️ The old message was already deleted.")
+    except discord.Forbidden:
+        print("❌ The bot does not have permission to delete messages!")
+
+async def send_new_embed():
+    """Sends a new embed message on every restart"""
+    await delete_old_embed()  # Delete the old message first
+
+    channel = bot.get_channel(CHANNEL_ID)
+    if not channel:
+        print("⚠️ Bot cannot find the channel. Check the CHANNEL_ID.")
+        return
+
     embed = discord.Embed(
         title="🖼️ Image Resizer",
         description="React with the correct emoji to choose a device format.",
@@ -43,15 +87,20 @@ async def resizer(ctx):
     embed.add_field(name="📟 M5Stick / Cardputer", value="240x135", inline=False)
     embed.add_field(name="📡 T-Embed CC1101", value="320x170", inline=False)
     embed.add_field(name="🖥️ CYD", value="320x240", inline=False)
-    
-    message = await ctx.send(embed=embed)
 
-    # Add reaction options
+    message = await channel.send(embed=embed)
     for emoji in size_options.keys():
         await message.add_reaction(emoji)
 
-    # Store the message ID so we can track reactions
     bot.embed_message_id = message.id
+    save_embed_message_id(message.id)
+    print(f"✅ New embed message sent in {channel.name} (ID: {message.id})")
+
+@bot.event
+async def on_ready():
+    """Runs when the bot starts and sends a new embed message"""
+    print(f'✅ Bot is online as {bot.user.name}')
+    await send_new_embed()  # Sends a new message on restart
 
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -59,8 +108,8 @@ async def on_reaction_add(reaction, user):
     if user.bot:
         return
 
-    # Ensure reaction is on the correct embed message
-    if reaction.message.id != getattr(bot, "embed_message_id", None):
+    embed_message_id = bot.embed_message_id
+    if reaction.message.id != embed_message_id:
         return
 
     if reaction.emoji in size_options:
@@ -73,7 +122,7 @@ async def on_reaction_add(reaction, user):
         try:
             msg = await bot.wait_for("message", check=check, timeout=60.0)
         except asyncio.TimeoutError:
-            await user.send("Timed out! Please react again and upload the image faster.")
+            await user.send("⏳ Timed out! Please react again and upload the image faster.")
             return
 
         if msg.attachments:
@@ -85,7 +134,7 @@ async def process_and_send_image(image_url, size, user):
     async with aiohttp.ClientSession() as session:
         async with session.get(image_url) as resp:
             if resp.status != 200:
-                return await user.send("There was an error downloading the image.")
+                return await user.send("⚠️ There was an error downloading the image.")
             
             image_bytes = await resp.read()
     
@@ -94,10 +143,9 @@ async def process_and_send_image(image_url, size, user):
             image_format = img.format if img.format else "JPEG"
             file_extension = image_format.lower() if image_format else "jpg"
 
-            # Wenn das Bild ein animiertes GIF ist
             if img.format == "GIF" and getattr(img, "is_animated", False):
                 frames = []
-                for frame in range(img.n_frames):
+                for frame in range(min(img.n_frames, 50)):  # Limit to 50 frames (save memory)
                     img.seek(frame)
                     frame_resized = img.copy().resize(size, Image.NEAREST)
                     frames.append(frame_resized)
@@ -114,7 +162,6 @@ async def process_and_send_image(image_url, size, user):
                 output_buffer.seek(0)
                 new_filename = "boot.gif"
             else:
-                # Für nicht-animierte Bilder
                 img = img.resize(size, Image.LANCZOS)
                 output_buffer = io.BytesIO()
                 img.save(output_buffer, format=image_format)
@@ -122,10 +169,10 @@ async def process_and_send_image(image_url, size, user):
                 new_filename = f"boot.{file_extension}"
 
             file = discord.File(output_buffer, filename=new_filename)
-            await user.send(f"Here is your resized image ({size[0]}x{size[1]}).", file=file)
+            await user.send(f"✅ Here is your resized image ({size[0]}x{size[1]}).", file=file)
 
     except Exception as e:
-        await user.send("There was an error processing the image.")
+        await user.send("⚠️ There was an error processing the image.")
         print(f"Error: {e}")
 
 # Start the bot
