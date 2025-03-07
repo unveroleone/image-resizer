@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-# Set the channel ID where the bot should send the embed message
-CHANNEL_ID = 123456789012345678  # REPLACE THIS WITH YOUR DISCORD CHANNEL ID!
+# Channel ID where the bot will send messages
+CHANNEL_ID = 1334922393990336631
 
 # Bot intents
 intents = discord.Intents.default()
@@ -33,16 +33,16 @@ size_options = {
     "🖥️": (320, 240)   # CYD
 }
 
-# File for storing embed message ID
+# File for storing the embed message ID
 EMBED_MESSAGE_FILE = "embed_message.json"
 
 def save_embed_message_id(message_id):
-    """Saves the embed message ID to a JSON file"""
+    """Saves the embed message ID to a JSON file."""
     with open(EMBED_MESSAGE_FILE, "w") as f:
         json.dump({"embed_message_id": message_id}, f)
 
 def load_embed_message_id():
-    """Loads the embed message ID from the JSON file"""
+    """Loads the stored message ID."""
     try:
         with open(EMBED_MESSAGE_FILE, "r") as f:
             data = json.load(f)
@@ -58,7 +58,7 @@ async def delete_old_embed():
 
     channel = bot.get_channel(CHANNEL_ID)
     if not channel:
-        print("⚠️ The bot cannot access the channel.")
+        print("⚠️ The bot does not have access to the channel.")
         return
 
     try:
@@ -71,9 +71,9 @@ async def delete_old_embed():
         print("❌ The bot does not have permission to delete messages!")
 
 async def send_new_embed():
-    """Sends a new embed message on every restart"""
-    await delete_old_embed()  # Delete the old message first
-
+    """Sends a new embed message on every restart."""
+    await delete_old_embed()
+    
     channel = bot.get_channel(CHANNEL_ID)
     if not channel:
         print("⚠️ Bot cannot find the channel. Check the CHANNEL_ID.")
@@ -98,9 +98,9 @@ async def send_new_embed():
 
 @bot.event
 async def on_ready():
-    """Runs when the bot starts and sends a new embed message"""
+    """Starts the bot and sends a new embed message."""
     print(f'✅ Bot is online as {bot.user.name}')
-    await send_new_embed()  # Sends a new message on restart
+    await send_new_embed()
 
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -135,9 +135,9 @@ async def process_and_send_image(image_url, size, user):
         async with session.get(image_url) as resp:
             if resp.status != 200:
                 return await user.send("⚠️ There was an error downloading the image.")
-            
+
             image_bytes = await resp.read()
-    
+
     try:
         with Image.open(io.BytesIO(image_bytes)) as img:
             image_format = img.format if img.format else "JPEG"
@@ -145,7 +145,7 @@ async def process_and_send_image(image_url, size, user):
 
             if img.format == "GIF" and getattr(img, "is_animated", False):
                 frames = []
-                for frame in range(min(img.n_frames, 50)):  # Limit to 50 frames (save memory)
+                for frame in range(min(img.n_frames, 50)):  # Limit to 50 frames (memory efficiency)
                     img.seek(frame)
                     frame_resized = img.copy().resize(size, Image.NEAREST)
                     frames.append(frame_resized)
@@ -160,20 +160,19 @@ async def process_and_send_image(image_url, size, user):
                     loop=img.info.get("loop", 0)
                 )
                 output_buffer.seek(0)
-                new_filename = "boot.gif"
+                new_filename = "resized.gif"
             else:
                 img = img.resize(size, Image.LANCZOS)
                 output_buffer = io.BytesIO()
                 img.save(output_buffer, format=image_format)
                 output_buffer.seek(0)
-                new_filename = f"boot.{file_extension}"
+                new_filename = f"resized.{file_extension}"
 
             file = discord.File(output_buffer, filename=new_filename)
-            await user.send(f"✅ Here is your resized image ({size[0]}x{size[1]}).", file=file)
+            await user.send(f"Here is your resized image ({size[0]}x{size[1]}).", file=file)
 
     except Exception as e:
         await user.send("⚠️ There was an error processing the image.")
         print(f"Error: {e}")
 
-# Start the bot
 bot.run(TOKEN)
