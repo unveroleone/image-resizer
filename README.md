@@ -5,7 +5,7 @@ Boot-Img-Bot is a Discord bot that allows users to resize images directly in a D
 ---
 
 ## 📌 Features
-- Resizes images and GIFs uploaded to Discord for boot image use on M5 Bruce devices.
+- Resizes images and GIFs uploaded to Discord for boot image use on multiple devices.
 - Supports multiple resolutions:
   - **M5Stick & Cardputer**: 240x135
   - **T-Embed CC1101**: 320x170
@@ -16,6 +16,9 @@ Boot-Img-Bot is a Discord bot that allows users to resize images directly in a D
 - 🛠️ **Automatically sends a new embed message on restart**
 - 🛠️ **Deletes the old embed message before sending a new one**
 - 🛠️ **Supports custom Discord channel selection for embed messages**
+- 🛠️ **Users can select a device format using emoji reactions**
+- 🛠️ **Users receive a direct message requesting an image upload**
+- 🛠️ **Supports GIF resizing while preserving animations**
 
 ---
 
@@ -56,7 +59,7 @@ nano .env
 ```
 Add the following:
 ```
-DISCORD_TOKEN=your-super-secret-token
+TOKEN=your-super-secret-token
 ```
 Save and exit (`CTRL + X`, then `Y`, then `Enter`).
 
